@@ -15,6 +15,10 @@ export class AndroidAppsService {
     return this.androidAppRepository.save(androidApp);
   }
 
+  updateStatus(androidApp: AndroidApp): Promise<AndroidApp> {
+    return this.androidAppRepository.save(androidApp);
+  }
+
   findAllByUser(userId: string): Promise<AndroidApp[]> {
     return this.androidAppRepository.find({where: {user: userId}});
   }
