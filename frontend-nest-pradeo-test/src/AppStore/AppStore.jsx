@@ -6,23 +6,46 @@ function AppStore() {
     const { id } = useParams();
     const [userApps, setUserApps] = useState([]);
     const [loading, setLoading] = useState('');
+
     useEffect(() => {
         fetchApp();
-        setLoading('Loading...')
-        return () => { };
+        return ((eventSource) => {eventSource.close()})
     }, []);
 
     const fetchApp = () => {
+        setLoading('Loading...');
         fetch(`http://localhost:5000/user/${id}/secure-store`).then(response => response.json())
             .then(
                 data => {
-                    console.log(data);
+                    //console.log(data);
                     setUserApps(data);
                     setLoading('');
                 })
             .catch(error => console.error(error));
     }
 
+    const listenToAppUpdate = () => {
+
+    }
+    const eventSource = new EventSource('http://localhost:5000/android-apps/app-updated');
+    console.log("EVENT SOURCE TRIGGER");
+    eventSource.onmessage = ({ data }) => {
+        console.log('New message', JSON.parse(data));
+        //setUserApps({...userApps, data});
+    };
+
+
+    const getAppStatus = (application) => {
+        if (application.is_verified) {
+            if (application.is_safe) {
+                return "Sûre 👍";
+            } else {
+                return "Virus 🦟";
+            }
+        } else {
+            return "En cours de vérification 🥁";
+        }
+    }
 
 
     return (
@@ -39,7 +62,7 @@ function AppStore() {
                         <div className='app-card' key={app.id}>
                             <p>{app.name}</p>
                             <p>{app.comment !== '' ? app.comment : 'Pas de commentaires'}</p>
-                            <p>{app.is_safe ? "Application sûre" : "Application non fiable"}</p>
+                            <p>{getAppStatus(app)}</p>
                         </div>
                     ))}
             </div>
