@@ -1,27 +1,28 @@
 import { HttpService } from '@nestjs/axios';
-import { Controller, Param, Post, Get, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Param, Post, Get, UseInterceptors, UploadedFile, Sse, MessageEvent } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { editFileName, fileTypeFilter } from 'src/middleware/file-upload.middleware';
+import { fileTypeFilter } from 'src/utils/file-upload.utils';
 import { User } from 'src/users/user.entity';
 import { UsersService } from 'src/users/users.service';
 import { AndroidApp } from './android-app.entity';
 import { AndroidAppsService } from './android-apps.service';
-import * as fs from 'fs/promises';
-import * as FormData from 'form-data';
-import { lastValueFrom } from 'rxjs';
-import { basename, extname } from "path";
+import { renameAppwithHash } from 'src/utils/file-upload.utils';
+import { CheckAppEvent } from 'src/events/check-app-event.event';
+import { interval, map, Observable } from 'rxjs';
+import { OnEvent } from '@nestjs/event-emitter';
+
 
 @Controller('android-apps')
 export class AndroidAppsController {
 
   constructor(private readonly usersService: UsersService, private readonly androidAppsService: AndroidAppsService
-    , private httpService: HttpService) { }
+    , private httpService: HttpService, private readonly checkAppEvent: CheckAppEvent) {}
 
   //Retrieve all apps from the user id, since no authentication system is used in this exercice
-  @Get(':id')
-  findAllFromUser(@Param('id') id): string {
-    return 'Find all Android apps';
+  @Get('/from_user/:id')
+  findAllFromUser(@Param('id') id): Promise<AndroidApp[]> {
+    return this.androidAppsService.findAllByUser(id);
   }
 
   @Post('create/:id')
@@ -33,16 +34,17 @@ export class AndroidAppsController {
   }))
   async createApp(@Param('id') id, @UploadedFile() file: Express.Multer.File): Promise<AndroidApp | string> {
 
-    console.log(file);
-    //return 'STOP';
     //First, check if the user exist
     const relatedUser: User | null = await this.usersService.findOne(id);
 
     if (relatedUser !== undefined && relatedUser !== null) {
-      await this.checkApp(file);
+      const newFilePath = await renameAppwithHash(file.filename);
+
       let newAndroidApp = new AndroidApp;
+
       newAndroidApp.name = file.originalname;
       newAndroidApp.hash = file.filename;
+      newAndroidApp.is_verified = false;
       newAndroidApp.is_safe = false;
       newAndroidApp.comment = '';
       newAndroidApp.user = relatedUser;
@@ -50,46 +52,33 @@ export class AndroidAppsController {
       newAndroidApp = await this.androidAppsService.create(newAndroidApp);
 
       if (newAndroidApp.id !== undefined && newAndroidApp.id !== null) {
+        this.checkAppEvent.emitDoScan({app: newAndroidApp, filePath: newFilePath});
+
         newAndroidApp.comment = "The application is successfuly uploaded, you can check the status in the store";
         return newAndroidApp;
       }
       else {
-        //return "Something went wrong with this action, please try again";
+        return "Something went wrong with this action, please try again";
       }
     }
     else {
-      //return "No user found, please try again"; //Message should be more generic to avoid hints
+      return "No user found, please try again or check the database"; //Message should be more generic to avoid hints
     }
   }
 
-  async checkApp(file: Express.Multer.File): Promise<boolean> {
-
-    const formFile = await fs.readFile('./upload/Snaptube_v6.06.0.6065310_apkpure.com.apk');
-    const form = new FormData();
-    form.append('apikey', 'd73078b3aa5077a86a47dc62bf7585fff090e033fb0e534396b52438ff836daf');
-    form.append('file', formFile, file.filename);
-
-
-
-    const responseData = await lastValueFrom(this.httpService.post('https://www.virustotal.com/vtapi/v2/file/scan', form, {
-      headers: {
-        ...form.getHeaders(),
-      },
-      maxBodyLength: 33554432
-    })
-    );
-
-    console.log(responseData);
-
-    /*await fetch('https://www.virustotal.com/vtapi/v2/file/scan', {
-      method: 'POST',
-      headers: {Accept: 'text/plain', 'Content-Type': 'application/x-www-form-urlencoded'},
-    })
-      .then(response => response.json())
-      .then(response => console.log(response))
-      .catch(err => console.error(err));
-      */
-
-    return false;
+  @Sse('app-updated')
+  @OnEvent('app.statusUpdated')
+  sseAppUpdated(updatedApp: AndroidApp | null): Observable<MessageEvent> {
+    //return interval(1000).pipe(map((_) => ({ data: {message: 'updateBoolean'} } )));
+    console.log("TRIGGEREEEEEED");
+    if(updatedApp !== undefined && updatedApp !== null) {
+      console.log("update SSE triggered");
+      return interval(2000).pipe(map((_) => ({ data: updatedApp } as MessageEvent)),
+      );
+    } else {
+      console.log("Waiting for trigger");
+      return interval(2000).pipe(map((_) => ({ data: {message: "waiting..."} } as MessageEvent)),
+      );
+    }
   }
 }
