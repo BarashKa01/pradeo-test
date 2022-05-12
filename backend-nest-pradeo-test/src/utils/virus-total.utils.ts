@@ -3,14 +3,6 @@ import * as FormData from 'form-data';
 import { lastValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
 
-
-export const renameAppwithHash = async (fileHashedName: string): Promise<string> => {
-    const oldPath = './upload/' + fileHashedName;
-    const newPath = './upload/' + fileHashedName + ".apk";
-    await fs.rename(oldPath, newPath);
-    return newPath;
-}
-
 export const performScan = async (filePath: string): Promise<string> => {
 
     let httpService = new HttpService();
