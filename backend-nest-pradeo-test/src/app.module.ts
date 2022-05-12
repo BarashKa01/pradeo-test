@@ -7,9 +7,10 @@ import { User } from './users/user.entity';
 import { UsersModule } from './users/users.module';
 import { AndroidApp } from './apps/android-app.entity';
 import { AndroidAppsModule } from './apps/android-apps.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
-  imports: [
+  imports: [EventEmitterModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: 'localhost',
