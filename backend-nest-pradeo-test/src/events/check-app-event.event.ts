@@ -26,12 +26,12 @@ export class CheckAppEvent {
 
     @OnEvent('app.doScan')
     performScan(payload: any) {
-        
+
         setTimeout(async () => {
             console.log('Scanning on going...')
             const reportId = await performScan(payload.filePath)
             payload.reportId = reportId;
-            //console.log(payload);
+
             this.emitCheckReport(payload);
         }, 15000);
     }
@@ -40,23 +40,30 @@ export class CheckAppEvent {
     checkReport(payload: any) {
 
         setTimeout(async () => {
-            console.log("Checking report....");
-            const appScore = await checkReport(payload.reportId)
-            if (appScore === 0) {
-                payload.app.is_safe = true;
-            } else {
-                payload.app.is_safe = false;
+            console.log("Checking report...");
+            const appScore = await checkReport(payload.reportId);
+
+            //Take the last data of the object from DB, in case of renaming or else
+            payload.app = await this.androidAppService.findOne(payload.app.id);
+
+            //Then update
+            if (payload.app !== undefined && payload.app !== null) {
+                if (appScore === 0) {
+                    payload.app.is_safe = true;
+                } else {
+                    payload.app.is_safe = false;
+                }
+                payload.app.is_verified = true;
+                this.emitUpdateStatus(payload.app);
             }
-            payload.app.is_verified = true;
-            this.emitUpdateStatus(payload.app);
         }, 15000);
     }
 
     @OnEvent('app.updateStatus')
     async updateAppStatus(checkedApp: AndroidApp) {
-       await this.androidAppService.updateStatus(checkedApp);
-       console.log("updated in Database");
-       const updateOnGoing: boolean = true;
+        await this.androidAppService.update(checkedApp);
+        console.log("updated in Database");
+
         //handled in the "app controller" route
         this.emitStatusUpdated(checkedApp);
     }
