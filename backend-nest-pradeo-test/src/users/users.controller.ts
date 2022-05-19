@@ -8,7 +8,7 @@ import { UsersService } from './users.service';
 export class UsersController {
 
   constructor (private readonly usersService: UsersService, private readonly androidAppsService: AndroidAppsService) {
-    this.isUsersFixturesShouldBeLoaded();
+    this.isUsersFixturesShouldBeLoaded(); // Create 2 user if no user in the database
   }
 
   async isUsersFixturesShouldBeLoaded(): Promise<void> {
