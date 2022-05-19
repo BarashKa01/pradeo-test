@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AndroidApp } from './apps/android-app.entity';
 import { AndroidAppsModule } from './apps/android-apps.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [EventEmitterModule.forRoot(),
@@ -24,6 +25,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     }),
     UsersModule,
     AndroidAppsModule,
+    ScheduleModule.forRoot()
   ],
   controllers: [AppController],
   providers: [AppService],
