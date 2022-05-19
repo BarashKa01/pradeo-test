@@ -22,6 +22,12 @@ export class AndroidApp {
   @Column()
   is_verified: boolean;
 
+  @Column()
+  on_upload: boolean;
+
+  @Column()
+  report_id: string;
+
   @ManyToOne(type => User, user => user.apps)
   @JoinColumn({ referencedColumnName: "id" })
   user: User;
