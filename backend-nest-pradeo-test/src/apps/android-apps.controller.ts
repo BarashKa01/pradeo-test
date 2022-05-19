@@ -8,8 +8,7 @@ import { UsersService } from 'src/users/users.service';
 import { AndroidApp } from './android-app.entity';
 import { AndroidAppsService } from './android-apps.service';
 import { renameAppwithHash } from 'src/utils/file.utils';
-import { CheckAppEvent } from 'src/events/check-app-event.event';
-import { from, interval, map, Observable, Observer, of, switchMap } from 'rxjs';
+import { interval, map, Observable, of, switchMap } from 'rxjs';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AndroidAppDto } from './android-app.dto';
 
@@ -18,7 +17,7 @@ import { AndroidAppDto } from './android-app.dto';
 export class AndroidAppsController {
 
   constructor(private readonly usersService: UsersService, private readonly androidAppsService: AndroidAppsService
-    , private httpService: HttpService, private readonly checkAppEvent: CheckAppEvent) { }
+    , private httpService: HttpService) { }
 
   //Retrieve all apps from the user id, since no authentication system is used in this exercice
   @Get('/from_user/:id')
@@ -39,7 +38,7 @@ export class AndroidAppsController {
     const relatedUser: User | null = await this.usersService.findOne(userId);
 
     if (relatedUser !== undefined && relatedUser !== null) {
-      const newFilePath = await renameAppwithHash(file.filename);
+      await renameAppwithHash(file.filename);
 
       let newAndroidApp = new AndroidApp;
 
@@ -47,13 +46,15 @@ export class AndroidAppsController {
       newAndroidApp.hash = file.filename;
       newAndroidApp.is_verified = false;
       newAndroidApp.is_safe = false;
+      newAndroidApp.on_upload = false;
+      newAndroidApp.report_id = '';
       newAndroidApp.comment = 'Renseignez un commentaire';
       newAndroidApp.user = relatedUser;
 
       newAndroidApp = await this.androidAppsService.create(newAndroidApp);
+      //Check "routine/set-app-status.routine.ts" file for server routine
 
       if (newAndroidApp.id !== undefined && newAndroidApp.id !== null) {
-        this.checkAppEvent.emitDoScan({ app: newAndroidApp, filePath: newFilePath });
         return newAndroidApp;
       }
       else {
@@ -80,10 +81,14 @@ export class AndroidAppsController {
     if (result === 0) {
       return { message: "0" };
     } else {
+      // 1 app affected by deletion
       return { message: "1" };
     }
   }
 
+
+
+  //Not used by front-end
   @Sse('app-updated')
   @OnEvent('app.statusUpdated')
   sseAppUpdated(updatedApp: AndroidApp | null): Observable<MessageEvent> {
