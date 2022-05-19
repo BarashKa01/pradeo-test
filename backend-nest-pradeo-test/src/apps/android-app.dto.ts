@@ -7,6 +7,8 @@ export class AndroidAppDto {
     comment: string;
     is_safe: boolean;
     is_verified: boolean;
+    report_id: string;
+    on_upload: boolean;
     user: User;
 
 }
