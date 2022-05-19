@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { NotFoundError } from 'rxjs';
 import { deleteAppFromHash } from 'src/utils/file.utils';
-import { DeleteResult, Repository } from 'typeorm';
+import { DeleteResult, Not, Repository } from 'typeorm';
 import { AndroidApp } from './android-app.entity';
 
 @Injectable()
@@ -33,6 +33,25 @@ export class AndroidAppsService {
     return this.androidAppRepository.findOne(id);
   }
 
+  findOneByFileHash(fileHash: string): Promise<AndroidApp> {
+    return this.androidAppRepository.findOne(null, {where: {
+      hash: fileHash
+    }});
+  }
+
+  //Pick the first app to scan
+  findToScan(): Promise<AndroidApp> {
+    return this.androidAppRepository.findOne(null, {where: {
+    is_verified: false, report_id: '', on_upload: false
+  }});
+  }
+  //Pick the first app with report_id to check
+  findForReport(): Promise<AndroidApp> {
+    return this.androidAppRepository.findOne(null, {where: {
+      is_verified: false, report_id: Not(''), on_upload: false
+    }});
+  }
+
   async remove(id: string): Promise<DeleteResult> {
 
     const appToDelete = await this.findOne(id);
@@ -41,7 +60,7 @@ export class AndroidAppsService {
       if (isFileDeleted) {
         console.log("File successfully deleted");
       } else {
-        console.error("File not NotFoundError, deleting entity only");
+        console.error("File not found error, deleting entity only");
       }
       return await this.androidAppRepository.delete(id);
     }
